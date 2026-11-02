@@ -1,5 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 void main() {
   runApp(const ChatAiApp());
@@ -38,11 +42,18 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocus = FocusNode();
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  final List<PlatformFile> _attachments = [];
+  bool _isRecording = false;
+  bool _isDictating = false;
 
   @override
   void dispose() {
     _messageController.dispose();
     _messageFocus.dispose();
+    _audioRecorder.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -58,13 +69,90 @@ class _HomePageState extends State<HomePage> {
 
   void _sendMessage() {
     final message = _messageController.text.trim();
-    if (message.isEmpty) {
+    if (message.isEmpty && _attachments.isEmpty) {
       _messageFocus.requestFocus();
       return;
     }
+    final count = _attachments.length;
     _messageController.clear();
+    setState(() => _attachments.clear());
     _messageFocus.unfocus();
-    _showComingSoon('واجهة المحادثة جاهزة، وسيتم ربط الذكاء الاصطناعي في المرحلة التالية');
+    _showComingSoon('تم تجهيز الرسالة و' + count.toString() + ' مرفق. يلزم ربط خادم الذكاء الاصطناعي لإرسالها وتحليلها والرد عليها.');
+  }
+
+  Future<void> _pickMedia() async {
+    try {
+      final picked = await FilePicker.platform.pickFiles(type: FileType.media, allowMultiple: true);
+      if (picked == null || !mounted) return;
+      setState(() => _attachments.addAll(picked.files));
+      _showComingSoon('تم اختيار الملفات. إرسالها وتحليلها يحتاج ربط الخادم.');
+    } catch (error) {
+      _showComingSoon('تعذر فتح ملفات الهاتف: ' + error.toString());
+    }
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      try {
+        final path = await _audioRecorder.stop();
+        if (!mounted) return;
+        setState(() => _isRecording = false);
+        if (path != null) {
+          final name = path.split('/').last;
+          setState(() => _attachments.add(PlatformFile(name: name, path: path, size: 0)));
+          _showComingSoon('تم حفظ التسجيل وإرفاقه. تفريغه وفهمه والرد عليه يتطلب ربط خدمة الذكاء الاصطناعي.');
+        }
+      } catch (error) {
+        if (mounted) setState(() => _isRecording = false);
+        _showComingSoon('تعذر إيقاف التسجيل: ' + error.toString());
+      }
+      return;
+    }
+    try {
+      if (!await _audioRecorder.hasPermission()) {
+        _showComingSoon('يرجى السماح باستخدام الميكروفون');
+        return;
+      }
+      final directory = await getTemporaryDirectory();
+      final path = directory.path + '/chat_ai_' + DateTime.now().millisecondsSinceEpoch.toString() + '.m4a';
+      await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+      if (mounted) setState(() => _isRecording = true);
+    } catch (error) {
+      _showComingSoon('تعذر بدء التسجيل: ' + error.toString());
+    }
+  }
+
+  Future<void> _toggleDictation() async {
+    if (_isDictating) {
+      await _speech.stop();
+      if (mounted) setState(() => _isDictating = false);
+      return;
+    }
+    try {
+      final available = await _speech.initialize(
+        onStatus: (status) {
+          if ((status == 'done' || status == 'notListening') && mounted) setState(() => _isDictating = false);
+        },
+        onError: (error) {
+          if (mounted) {
+            setState(() => _isDictating = false);
+            _showComingSoon('تعذر التعرف على الكلام: ' + error.errorMsg);
+          }
+        },
+      );
+      if (!available) {
+        _showComingSoon('خدمة تحويل الكلام إلى نص غير متاحة على هذا الجهاز');
+        return;
+      }
+      if (mounted) setState(() => _isDictating = true);
+      await _speech.listen(onResult: (speechResult) {
+        _messageController.text = speechResult.recognizedWords;
+        _messageController.selection = TextSelection.collapsed(offset: _messageController.text.length);
+      });
+    } catch (error) {
+      if (mounted) setState(() => _isDictating = false);
+      _showComingSoon('تعذر تشغيل الإملاء الصوتي: ' + error.toString());
+    }
   }
 
   @override
@@ -305,75 +393,36 @@ class _HomePageState extends State<HomePage> {
   Widget _buildComposer() {
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 0),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 72),
-        decoration: BoxDecoration(
-          color: const Color(0xD91A1C31),
-          borderRadius: BorderRadius.circular(40),
-          border: Border.all(color: const Color(0xFF6153E8), width: 1.25),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF4736E8).withValues(alpha: 0.20),
-              blurRadius: 24,
-              spreadRadius: 1,
-            ),
-          ],
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (_attachments.isNotEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(color: const Color(0xCC171A35), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFF6153E8))),
+            child: Wrap(spacing: 6, runSpacing: 6, children: List.generate(_attachments.length, (index) {
+              final file = _attachments[index];
+              return Chip(
+                avatar: const Icon(Icons.attach_file_rounded, size: 16),
+                label: SizedBox(width: 105, child: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                onDeleted: () => setState(() => _attachments.removeAt(index)),
+              );
+            })),
+          ),
+        if (_isDictating) const Padding(padding: EdgeInsets.only(bottom: 6), child: Text('أستمع إليك... تحدث الآن', style: TextStyle(color: Color(0xFF55DFFF)))),
+        Container(
+          constraints: const BoxConstraints(minHeight: 72),
+          decoration: BoxDecoration(color: const Color(0xD91A1C31), borderRadius: BorderRadius.circular(40), border: Border.all(color: const Color(0xFF6153E8), width: 1.25), boxShadow: [BoxShadow(color: const Color(0xFF4736E8).withValues(alpha: 0.20), blurRadius: 24, spreadRadius: 1)]),
+          child: Row(children: [
+            IconButton(tooltip: 'إرفاق صورة أو فيديو', onPressed: _pickMedia, icon: const Icon(Icons.add_rounded, color: Colors.white, size: 31)),
+            Expanded(child: TextField(controller: _messageController, focusNode: _messageFocus, textDirection: TextDirection.rtl, textInputAction: TextInputAction.send, onSubmitted: (_) => _sendMessage(), style: const TextStyle(color: Colors.white, fontSize: 16), decoration: const InputDecoration(hintText: 'اسألني أي شيء...', hintStyle: TextStyle(color: Color(0xFF9696AA), fontSize: 16), border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 18)))),
+            IconButton(tooltip: _isDictating ? 'إيقاف الإملاء' : 'تحويل الكلام إلى نص', onPressed: _toggleDictation, icon: Icon(_isDictating ? Icons.mic_rounded : Icons.mic_none_rounded, color: _isDictating ? const Color(0xFFFF668E) : Colors.white, size: 27)),
+            Padding(padding: const EdgeInsetsDirectional.only(end: 7), child: Material(color: Colors.transparent, child: InkWell(onTap: _toggleRecording, customBorder: const CircleBorder(), child: Ink(width: 54, height: 54, decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: _isRecording ? const [Color(0xFFFF477E), Color(0xFFFF8A55)] : const [Color(0xFF25C7FF), Color(0xFF7655FF)])), child: Icon(_isRecording ? Icons.stop_rounded : Icons.graphic_eq_rounded, color: Colors.white, size: 28))))),
+          ]),
         ),
-        child: Row(
-          children: [
-            IconButton(
-              tooltip: 'إضافة',
-              onPressed: () => _showComingSoon('إرفاق ملف'),
-              icon: const Icon(Icons.add_rounded, color: Colors.white, size: 31),
-            ),
-            Expanded(
-              child: TextField(
-                controller: _messageController,
-                focusNode: _messageFocus,
-                textDirection: TextDirection.rtl,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendMessage(),
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                decoration: const InputDecoration(
-                  hintText: 'اسألني أي شيء...',
-                  hintStyle: TextStyle(color: Color(0xFF9696AA), fontSize: 16),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 18),
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: 'الميكروفون',
-              onPressed: () => _showComingSoon('الإدخال الصوتي'),
-              icon: const Icon(Icons.mic_none_rounded, color: Colors.white, size: 27),
-            ),
-            Padding(
-              padding: const EdgeInsetsDirectional.only(end: 7),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _sendMessage,
-                  customBorder: const CircleBorder(),
-                  child: Ink(
-                    width: 54,
-                    height: 54,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF25C7FF), Color(0xFF7655FF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 30),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+        const SizedBox(height: 5),
+        const Text('أرفق الصور والفيديوهات أو سجّل صوتك', style: TextStyle(color: Color(0xFF85869D), fontSize: 11)),
+      ]),
     );
   }
 
