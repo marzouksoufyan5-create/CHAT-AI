@@ -47,6 +47,7 @@ class _HomePageState extends State<HomePage> {
   final List<PlatformFile> _attachments = [];
   bool _isRecording = false;
   bool _isDictating = false;
+  bool get _hasMessage => _messageController.text.trim().isNotEmpty || _attachments.isNotEmpty;
 
   @override
   void dispose() {
@@ -415,13 +416,13 @@ class _HomePageState extends State<HomePage> {
           decoration: BoxDecoration(color: const Color(0xD91A1C31), borderRadius: BorderRadius.circular(40), border: Border.all(color: const Color(0xFF6153E8), width: 1.25), boxShadow: [BoxShadow(color: const Color(0xFF4736E8).withValues(alpha: 0.20), blurRadius: 24, spreadRadius: 1)]),
           child: Row(children: [
             IconButton(tooltip: 'إرفاق صورة أو فيديو', onPressed: _pickMedia, icon: const Icon(Icons.add_rounded, color: Colors.white, size: 31)),
-            Expanded(child: TextField(controller: _messageController, focusNode: _messageFocus, textDirection: TextDirection.rtl, textInputAction: TextInputAction.send, onSubmitted: (_) => _sendMessage(), style: const TextStyle(color: Colors.white, fontSize: 16), decoration: const InputDecoration(hintText: 'اسألني أي شيء...', hintStyle: TextStyle(color: Color(0xFF9696AA), fontSize: 16), border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 18)))),
+            Expanded(child: TextField(controller: _messageController, focusNode: _messageFocus, textDirection: TextDirection.rtl, textInputAction: TextInputAction.send, onChanged: (_) => setState(() {}), onSubmitted: (_) => _sendMessage(), style: const TextStyle(color: Colors.white, fontSize: 16), decoration: const InputDecoration(hintText: 'اسألني أي شيء...', hintStyle: TextStyle(color: Color(0xFF9696AA), fontSize: 16), border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 18)))),
             IconButton(tooltip: _isDictating ? 'إيقاف الإملاء' : 'تحويل الكلام إلى نص', onPressed: _toggleDictation, icon: Icon(_isDictating ? Icons.mic_rounded : Icons.mic_none_rounded, color: _isDictating ? const Color(0xFFFF668E) : Colors.white, size: 27)),
-            Padding(padding: const EdgeInsetsDirectional.only(end: 7), child: Material(color: Colors.transparent, child: InkWell(onTap: _toggleRecording, customBorder: const CircleBorder(), child: Ink(width: 54, height: 54, decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: _isRecording ? const [Color(0xFFFF477E), Color(0xFFFF8A55)] : const [Color(0xFF25C7FF), Color(0xFF7655FF)])), child: Icon(_isRecording ? Icons.stop_rounded : Icons.graphic_eq_rounded, color: Colors.white, size: 28))))),
+            Padding(padding: const EdgeInsetsDirectional.only(end: 7), child: Material(color: Colors.transparent, child: InkWell(onTap: _hasMessage ? _sendMessage : _toggleRecording, customBorder: const CircleBorder(), child: Ink(width: 54, height: 54, decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: _isRecording ? const [Color(0xFFFF477E), Color(0xFFFF8A55)] : const [Color(0xFF25C7FF), Color(0xFF7655FF)])), child: Icon(_isRecording ? Icons.stop_rounded : (_hasMessage ? Icons.send_rounded : Icons.graphic_eq_rounded), color: Colors.white, size: 27))))),
           ]),
         ),
         const SizedBox(height: 5),
-        const Text('أرفق الصور والفيديوهات أو سجّل صوتك', style: TextStyle(color: Color(0xFF85869D), fontSize: 11)),
+        const Text('أرفق الصور والفيديوهات أو اكتب رسالتك أو سجّل صوتك', style: TextStyle(color: Color(0xFF85869D), fontSize: 11)),
       ]),
     );
   }
