@@ -47,7 +47,7 @@ jobs:
           if count == 0:
               raise SystemExit("Could not find compileSdk setting in android/app/build.gradle.kts")
           path.write_text(text)
-          print("Android compileSdk set to 36")
+          print("Android app compileSdk set to 36")
           PY
 
       - name: Configure Android voice permissions
@@ -67,6 +67,27 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Set Android plugin compile SDK to 36
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          cache = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+          targets = list(cache.glob("file_picker-*/android/build.gradle*"))
+          if not targets:
+              raise SystemExit("Could not locate file_picker Android Gradle file")
+          for path in targets:
+              text = path.read_text()
+              updated, count = re.subn(
+                  r"(compileSdkVersion\s+|compileSdk\s*=\s*)\d+",
+                  r"\g<1>36",
+                  text
+              )
+              if count == 0:
+                  raise SystemExit(f"Could not find compileSdk setting in {path}")
+              path.write_text(updated)
+              print(f"Set compileSdk 36 in {path}")
 
       - name: Check Dart code
         run: flutter analyze --no-fatal-infos
