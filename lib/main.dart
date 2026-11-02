@@ -87,7 +87,7 @@ class _HomePageState extends State<HomePage> {
                           physics: const BouncingScrollPhysics(),
                           child: ConstrainedBox(
                             constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                            child: const Column(
+                            child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 SizedBox(height: 12),
