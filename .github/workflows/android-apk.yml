@@ -36,6 +36,20 @@ jobs:
       - name: Generate Android project files
         run: flutter create --platforms=android --org com.chatai .
 
+      - name: Set Android compile SDK to 36
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path("android/app/build.gradle.kts")
+          text = path.read_text()
+          text, count = re.subn(r"compileSdk\\s*=\\s*flutter\\.compileSdkVersion", "compileSdk = 36", text)
+          if count == 0:
+              raise SystemExit("Could not find compileSdk setting in android/app/build.gradle.kts")
+          path.write_text(text)
+          print("Android compileSdk set to 36")
+          PY
+
       - name: Configure Android voice permissions
         run: |
           python3 - <<'PY'
