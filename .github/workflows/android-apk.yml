@@ -37,6 +37,44 @@ jobs:
       - name: Generate Android project files
         run: flutter create --platforms=android --org com.chatai .
 
+      - name: Install Firebase Android configuration
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "Missing GitHub Actions secret: GOOGLE_SERVICES_JSON"
+            exit 1
+          fi
+          mkdir -p android/app
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          python3 -m json.tool android/app/google-services.json > /dev/null
+          echo "Firebase Android configuration installed securely"
+
+      - name: Configure Google Services Gradle plugin
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          settings = Path("android/settings.gradle.kts")
+          text = settings.read_text()
+          plugin = '    id("com.google.gms.google-services") version "4.4.2" apply false\n'
+          if 'com.google.gms.google-services' not in text:
+              marker = 'plugins {\n'
+              if marker not in text:
+                  raise SystemExit("Could not find plugins block in android/settings.gradle.kts")
+              text = text.replace(marker, marker + plugin, 1)
+              settings.write_text(text)
+          app = Path("android/app/build.gradle.kts")
+          text = app.read_text()
+          apply = '    id("com.google.gms.google-services")\n'
+          if 'com.google.gms.google-services' not in text:
+              marker = 'plugins {\n'
+              if marker not in text:
+                  raise SystemExit("Could not find plugins block in android/app/build.gradle.kts")
+              text = text.replace(marker, marker + apply, 1)
+              app.write_text(text)
+          print("Google Services Gradle plugin configured")
+          PY
+
       - name: Generate CHAT AI launcher icons
         run: |
           python3 -m pip install --quiet Pillow
