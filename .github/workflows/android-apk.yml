@@ -44,8 +44,8 @@ jobs:
           import re
           gradle = Path("android/app/build.gradle.kts")
           text = gradle.read_text()
-          text, ns = re.subn(r'namespace\\s*=\\s*"[^"]+"', 'namespace = "com.chatai.chatai"', text, count=1)
-          text, app = re.subn(r'applicationId\\s*=\\s*"[^"]+"', 'applicationId = "com.chatai.chatai"', text, count=1)
+          text, ns = re.subn(r'namespace\s*=\s*"[^"]+"', 'namespace = "com.chatai.chatai"', text, count=1)
+          text, app = re.subn(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.chatai.chatai"', text, count=1)
           if ns != 1 or app != 1:
               raise SystemExit("Could not safely set Android namespace and applicationId")
           gradle.write_text(text)
@@ -54,7 +54,7 @@ jobs:
               raise SystemExit(f"Expected one MainActivity.kt, found {len(main_files)}")
           main = main_files[0]
           source = main.read_text()
-          source, changed = re.subn(r"(?m)^package\\s+[^\\n]+", "package com.chatai.chatai", source, count=1)
+          source, changed = re.subn(r"(?m)^package\s+[^\n]+", "package com.chatai.chatai", source, count=1)
           if changed != 1:
               raise SystemExit("Could not safely update MainActivity package")
           main.write_text(source)
