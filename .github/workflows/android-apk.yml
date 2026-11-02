@@ -43,7 +43,7 @@ jobs:
           import re
           path = Path("android/app/build.gradle.kts")
           text = path.read_text()
-          text, count = re.subn(r"compileSdk\\s*=\\s*flutter\\.compileSdkVersion", "compileSdk = 36", text)
+          text, count = re.subn(r"compileSdk\s*=\s*flutter\.compileSdkVersion", "compileSdk = 36", text)
           if count == 0:
               raise SystemExit("Could not find compileSdk setting in android/app/build.gradle.kts")
           path.write_text(text)
@@ -56,10 +56,10 @@ jobs:
           from pathlib import Path
           path = Path("android/app/src/main/AndroidManifest.xml")
           text = path.read_text()
-          permission = '    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\\n'
+          permission = '    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n'
           if "android.permission.RECORD_AUDIO" not in text:
               text = text.replace("<application", permission + "    <application", 1)
-          queries = '    <queries>\\n        <intent>\\n            <action android:name="android.speech.RecognitionService"/>\\n        </intent>\\n    </queries>\\n'
+          queries = '    <queries>\n        <intent>\n            <action android:name="android.speech.RecognitionService"/>\n        </intent>\n    </queries>\n'
           if "<queries>" not in text:
               text = text.replace("<application", queries + "    <application", 1)
           path.write_text(text)
