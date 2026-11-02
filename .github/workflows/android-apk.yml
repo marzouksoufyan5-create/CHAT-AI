@@ -36,6 +36,21 @@ jobs:
       - name: Generate Android project files
         run: flutter create --platforms=android --org com.chatai .
 
+      - name: Configure Android voice permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          text = path.read_text()
+          permission = '    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\\n'
+          if "android.permission.RECORD_AUDIO" not in text:
+              text = text.replace("<application", permission + "    <application", 1)
+          queries = '    <queries>\\n        <intent>\\n            <action android:name="android.speech.RecognitionService"/>\\n        </intent>\\n    </queries>\\n'
+          if "<queries>" not in text:
+              text = text.replace("<application", queries + "    <application", 1)
+          path.write_text(text)
+          PY
+
       - name: Install dependencies
         run: flutter pub get
 
