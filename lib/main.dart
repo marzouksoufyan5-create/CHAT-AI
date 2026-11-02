@@ -142,9 +142,7 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 28),
-                                _buildAiTools(),
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 36),
                               ],
                             ),
                           ),
@@ -379,6 +377,41 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _openAiTools() {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (pageContext) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            backgroundColor: const Color(0xFF03040B),
+            appBar: AppBar(
+              title: const Text(
+                'أدوات الذكاء الاصطناعي',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+              ),
+              backgroundColor: const Color(0xFF080B1B),
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            body: Stack(
+              children: [
+                const _AmbientBackground(),
+                SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(top: 28, bottom: 30),
+                    child: _buildAiTools(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDrawer() {
     return Drawer(
       backgroundColor: const Color(0xFF101222),
@@ -413,11 +446,12 @@ class _HomePageState extends State<HomePage> {
             ),
             ListTile(
               leading: const Icon(Icons.grid_view_rounded),
-              title: const Text('الأدوات'),
-              onTap: () {
-                Navigator.pop(context);
-                _showComingSoon('الأدوات الذكية');
-              },
+              title: const Text('أدوات الذكاء الاصطناعي'),
+              subtitle: const Text(
+                'الصور والكتابة والترجمة والبرمجة',
+                style: TextStyle(color: Color(0xFF85869D), fontSize: 11),
+              ),
+              onTap: _openAiTools,
             ),
             const Spacer(),
             const Divider(color: Color(0xFF292B42)),
