@@ -8,6 +8,7 @@ on:
       - 'lib/**'
       - 'test/**'
       - 'pubspec.yaml'
+      - 'assets/**'
       - '.github/workflows/**'
 
 permissions:
@@ -35,6 +36,25 @@ jobs:
 
       - name: Generate Android project files
         run: flutter create --platforms=android --org com.chatai .
+
+      - name: Generate CHAT AI launcher icons
+        run: |
+          python3 -m pip install --quiet Pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageOps
+          source = Path("assets/icon/chat_ai_icon.png")
+          if not source.exists():
+              raise SystemExit(f"Missing launcher icon: {source}")
+          image = Image.open(source).convert("RGBA")
+          image = ImageOps.fit(image, (512, 512), method=Image.Resampling.LANCZOS)
+          sizes = {"mipmap-mdpi": 48, "mipmap-hdpi": 72, "mipmap-xhdpi": 96, "mipmap-xxhdpi": 144, "mipmap-xxxhdpi": 192}
+          for folder, size in sizes.items():
+              target = Path("android/app/src/main/res") / folder
+              target.mkdir(parents=True, exist_ok=True)
+              image.resize((size, size), Image.Resampling.LANCZOS).save(target / "ic_launcher.png", optimize=True)
+          print("Generated CHAT AI launcher icons from assets/icon/chat_ai_icon.png")
+          PY
 
       - name: Set Android compile SDK to 36
         run: |
