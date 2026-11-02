@@ -21,7 +21,7 @@ class ChatAiApp extends StatelessWidget {
           seedColor: const Color(0xFF6557FF),
           brightness: Brightness.dark,
         ),
-        fontFamily: 'Roboto',
+        fontFamily: 'sans-serif',
       ),
       home: const HomePage(),
     );
@@ -93,39 +93,58 @@ class _HomePageState extends State<HomePage> {
                                 SizedBox(height: 12),
                                 AnimatedStarLogo(),
                                 SizedBox(height: 34),
-                                Text(
-                                  'مرحباً بك',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 39,
-                                    height: 1.25,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.8,
-                                    foreground: Paint()
-                                      ..shader = LinearGradient(
-                                        colors: [
-                                          Color(0xFF37D8FF),
-                                          Color(0xFF8580FF),
-                                          Color(0xFFC46BFF),
-                                        ],
-                                      ).createShader(const Rect.fromLTWH(0, 0, 260, 60)),
-                                  ),
-                                ),
-                                SizedBox(height: 12),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 24),
-                                  child: Text(
-                                    'كيف يمكنني مساعدتك اليوم؟',
+                                ShaderMask(
+                                  shaderCallback: (bounds) => const LinearGradient(
+                                    colors: [
+                                      Color(0xFF42E8FF),
+                                      Color(0xFF9B75FF),
+                                      Color(0xFFFF72D2),
+                                    ],
+                                  ).createShader(bounds),
+                                  child: const Text(
+                                    'مرحباً بك في CHAT AI',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: Color(0xFFE7E7F0),
-                                      fontSize: 21,
+                                      color: Colors.white,
+                                      fontFamily: 'sans-serif',
+                                      fontSize: 31,
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.1,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 24),
+                                  child: Text(
+                                    'رفيقك الذكي للإجابة والإبداع والإنجاز',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Color(0xFFBFC8E8),
+                                      fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                       height: 1.5,
                                     ),
                                   ),
                                 ),
-                                SizedBox(height: 36),
+                                const SizedBox(height: 7),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 24),
+                                  child: Text(
+                                    'كيف يمكنني مساعدتك اليوم؟',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Color(0xFFF4F4FF),
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+                                _buildAiTools(),
+                                const SizedBox(height: 32),
                               ],
                             ),
                           ),
@@ -157,13 +176,20 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(width: 8),
-          const Text(
-            'CHAT AI',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF45E7FF), Color(0xFF9C68FF), Color(0xFFFF67D4)],
+            ).createShader(bounds),
+            child: const Text(
+              'CHAT AI',
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: 'sans-serif-black',
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                fontStyle: FontStyle.italic,
+                letterSpacing: 1.3,
+              ),
             ),
           ),
           const Spacer(),
@@ -191,6 +217,89 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAiTools() {
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(18, 0, 18, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'أدوات الذكاء الاصطناعي',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFFE9E7FF),
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(height: 15),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 11,
+            crossAxisSpacing: 11,
+            childAspectRatio: 2.35,
+            children: [
+              _toolCard('محادثة ذكية', Icons.chat_bubble_outline_rounded, const Color(0xFF39D5FF)),
+              _toolCard('إنشاء الصور', Icons.auto_awesome_rounded, const Color(0xFFB77BFF)),
+              _toolCard('كتابة المحتوى', Icons.edit_note_rounded, const Color(0xFFFF79C8)),
+              _toolCard('الترجمة', Icons.translate_rounded, const Color(0xFF51DDBB)),
+              _toolCard('تلخيص النصوص', Icons.summarize_rounded, const Color(0xFFFFC45C)),
+              _toolCard('مساعدة برمجية', Icons.code_rounded, const Color(0xFF7D9CFF)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _toolCard(String title, IconData icon, Color accent) {
+    return Material(
+      color: const Color(0xCC171A35),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => _showComingSoon(title),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: accent.withValues(alpha: 0.55), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.08),
+                blurRadius: 15,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: accent, size: 25),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFF1F1FA),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
