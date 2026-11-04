@@ -57,7 +57,7 @@ class _HomePageState extends State<HomePage> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final List<PlatformFile> _attachments = [];
   final List<Map<String, String>> _messages = [];
-  late final GenerativeModel _model = FirebaseAI.googleAI().generativeModel(model: 'gemini-3.8-flash');
+  late final GenerativeModel _model = FirebaseAI.googleAI(useLimitedUseAppCheckTokens: true).generativeModel(model: 'gemini-3.8-flash');
   bool _isSending = false;
   bool _isRecording = false;
   bool _isDictating = false;
