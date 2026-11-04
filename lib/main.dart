@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_ai/firebase_ai.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -48,6 +49,9 @@ class _HomePageState extends State<HomePage> {
   final AudioRecorder _audioRecorder = AudioRecorder();
   final stt.SpeechToText _speech = stt.SpeechToText();
   final List<PlatformFile> _attachments = [];
+  final List<Map<String, String>> _messages = [];
+  late final GenerativeModel _model = FirebaseAI.googleAI().generativeModel(model: 'gemini-3.8-flash');
+  bool _isSending = false;
   bool _isRecording = false;
   bool _isDictating = false;
   bool get _hasMessage => _messageController.text.trim().isNotEmpty || _attachments.isNotEmpty;
@@ -71,17 +75,37 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty && _attachments.isEmpty) {
       _messageFocus.requestFocus();
       return;
     }
-    final count = _attachments.length;
+    if (_attachments.isNotEmpty) {
+      _showComingSoon('تم استلام النص. تحليل الصور والملفات سيضاف في المرحلة التالية.');
+      if (message.isEmpty) return;
+    }
     _messageController.clear();
-    setState(() => _attachments.clear());
     _messageFocus.unfocus();
-    _showComingSoon('تم تجهيز الرسالة و' + count.toString() + ' مرفق. يلزم ربط خادم الذكاء الاصطناعي لإرسالها وتحليلها والرد عليها.');
+    setState(() {
+      _messages.add({'role': 'user', 'text': message});
+      _isSending = true;
+    });
+    try {
+      final response = await _model.generateContent([Content.text(message)]);
+      final answer = response.text?.trim();
+      if (!mounted) return;
+      setState(() {
+        _messages.add({'role': 'assistant', 'text': (answer == null || answer.isEmpty) ? 'لم يصل رد نصي. حاول مرة أخرى.' : answer});
+        _isSending = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add({'role': 'assistant', 'text': 'تعذر الاتصال بخدمة Gemini. تحقق من تفعيل Firebase AI Logic وإعداد App Check والاتصال بالإنترنت.\n\nالتفاصيل: $error'});
+        _isSending = false;
+      });
+    }
   }
 
   Future<void> _pickMedia() async {
@@ -173,74 +197,68 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   _buildTopBar(),
                   Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(height: 12),
-                                AnimatedStarLogo(),
-                                SizedBox(height: 34),
-                                ShaderMask(
-                                  shaderCallback: (bounds) => const LinearGradient(
-                                    colors: [
-                                      Color(0xFF42E8FF),
-                                      Color(0xFF9B75FF),
-                                      Color(0xFFFF72D2),
+                    child: _messages.isEmpty
+                        ? LayoutBuilder(
+                            builder: (context, constraints) {
+                              return SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const SizedBox(height: 12),
+                                      const AnimatedStarLogo(),
+                                      const SizedBox(height: 34),
+                                      ShaderMask(
+                                        shaderCallback: (bounds) => const LinearGradient(
+                                          colors: [Color(0xFF42E8FF), Color(0xFF9B75FF), Color(0xFFFF72D2)],
+                                        ).createShader(bounds),
+                                        child: const Text('مرحباً بك في CHAT AI', textAlign: TextAlign.center,
+                                          style: TextStyle(color: Colors.white, fontSize: 31, height: 1.35, fontWeight: FontWeight.w900)),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text('رفيقك الذكي للإجابة والإبداع والإنجاز', textAlign: TextAlign.center,
+                                        style: TextStyle(color: Color(0xFFBFC8E8), fontSize: 16)),
+                                      const SizedBox(height: 7),
+                                      const Text('كيف يمكنني مساعدتك اليوم؟', textAlign: TextAlign.center,
+                                        style: TextStyle(color: Color(0xFFF4F4FF), fontSize: 21, fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 36),
                                     ],
-                                  ).createShader(bounds),
-                                  child: const Text(
-                                    'مرحباً بك في CHAT AI',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontFamily: 'sans-serif',
-                                      fontSize: 31,
-                                      height: 1.35,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 0.1,
-                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 24),
-                                  child: Text(
-                                    'رفيقك الذكي للإجابة والإبداع والإنجاز',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Color(0xFFBFC8E8),
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.5,
-                                    ),
+                              );
+                            },
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                            itemCount: _messages.length + (_isSending ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (_isSending && index == _messages.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(14),
+                                  child: Align(alignment: Alignment.centerRight, child: CircularProgressIndicator()),
+                                );
+                              }
+                              final item = _messages[index];
+                              final isUser = item['role'] == 'user';
+                              return Align(
+                                alignment: isUser ? Alignment.centerLeft : Alignment.centerRight,
+                                child: Container(
+                                  constraints: const BoxConstraints(maxWidth: 330),
+                                  margin: const EdgeInsets.symmetric(vertical: 6),
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: isUser ? const Color(0xFF37306F) : const Color(0xFF171A35),
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(color: const Color(0xFF6153E8).withValues(alpha: 0.5)),
                                   ),
+                                  child: SelectableText(item['text'] ?? '', textDirection: TextDirection.rtl,
+                                    style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5)),
                                 ),
-                                const SizedBox(height: 7),
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 24),
-                                  child: Text(
-                                    'كيف يمكنني مساعدتك اليوم؟',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Color(0xFFF4F4FF),
-                                      fontSize: 21,
-                                      fontWeight: FontWeight.w700,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 36),
-                              ],
-                            ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
                   ),
                   _buildComposer(),
                   const SizedBox(height: 14),
