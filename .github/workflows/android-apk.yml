@@ -184,6 +184,37 @@ jobs:
       - name: Build Android App Bundle
         run: flutter build appbundle --release
 
+      - name: Extract APK signing SHA-256 fingerprints
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [ -z "$APKSIGNER" ]; then
+            echo "apksigner was not found in the Android SDK"
+            exit 1
+          fi
+          mkdir -p app-check-fingerprints
+          for variant in debug release; do
+            APK="build/app/outputs/flutter-apk/app-${variant}.apk"
+            if [ ! -f "$APK" ]; then
+              echo "APK not found: $APK"
+              exit 1
+            fi
+            {
+              echo "=== ${variant} APK ==="
+              "$APKSIGNER" verify --print-certs "$APK" | grep -E "Signer #1 certificate SHA-256 digest:"
+              echo
+            } | tee -a app-check-fingerprints/SHA256.txt
+          done
+          echo "SHA-256 fingerprints saved to app-check-fingerprints/SHA256.txt"
+
+      - name: Upload App Check SHA-256 fingerprints
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat-ai-app-check-sha256
+          path: app-check-fingerprints/SHA256.txt
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload debug APK for App Check testing
         uses: actions/upload-artifact@v4
         with:
