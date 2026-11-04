@@ -83,6 +83,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _sendMessage() async {
+    if (_isSending) return;
+
     final message = _messageController.text.trim();
     if (message.isEmpty && _attachments.isEmpty) {
       _messageFocus.requestFocus();
@@ -92,24 +94,47 @@ class _HomePageState extends State<HomePage> {
       _showComingSoon('تم استلام النص. تحليل الصور والملفات سيضاف في المرحلة التالية.');
       if (message.isEmpty) return;
     }
+
     _messageController.clear();
     _messageFocus.unfocus();
+
+    final assistantIndex = _messages.length + 1;
     setState(() {
       _messages.add({'role': 'user', 'text': message});
+      _messages.add({'role': 'assistant', 'text': ''});
       _isSending = true;
     });
+
     try {
-      final response = await _model.generateContent([Content.text(message)]);
-      final answer = response.text?.trim();
+      // Stream the answer so the user sees text as soon as Gemini sends each chunk.
+      final responseStream =
+          _model.generateContentStream([Content.text(message)]);
+
+      await for (final chunk in responseStream) {
+        final chunkText = chunk.text;
+        if (chunkText == null || chunkText.isEmpty) continue;
+        if (!mounted) return;
+
+        setState(() {
+          _messages[assistantIndex]['text'] =
+              (_messages[assistantIndex]['text'] ?? '') + chunkText;
+        });
+      }
+
       if (!mounted) return;
       setState(() {
-        _messages.add({'role': 'assistant', 'text': (answer == null || answer.isEmpty) ? 'لم يصل رد نصي. حاول مرة أخرى.' : answer});
+        if ((_messages[assistantIndex]['text'] ?? '').trim().isEmpty) {
+          _messages[assistantIndex]['text'] = 'لم يصل رد نصي. حاول مرة أخرى.';
+        }
         _isSending = false;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _messages.add({'role': 'assistant', 'text': 'تعذر الاتصال بخدمة Gemini. تحقق من تفعيل Firebase AI Logic وإعداد App Check والاتصال بالإنترنت.\n\nالتفاصيل: $error'});
+        final currentText = _messages[assistantIndex]['text'] ?? '';
+        _messages[assistantIndex]['text'] = currentText.isEmpty
+            ? 'تعذر الاتصال بخدمة Gemini. تحقق من تفعيل Firebase AI Logic وإعداد App Check والاتصال بالإنترنت.\n\nالتفاصيل: $error'
+            : '$currentText\n\nتوقف تدفق الإجابة قبل اكتماله: $error';
         _isSending = false;
       });
     }
