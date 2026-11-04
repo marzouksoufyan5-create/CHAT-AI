@@ -185,27 +185,33 @@ jobs:
         run: flutter build appbundle --release
 
       - name: Extract APK signing SHA-256 fingerprints
+        shell: bash
         run: |
           set -euo pipefail
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          if [ -z "$APKSIGNER" ]; then
-            echo "apksigner was not found in the Android SDK"
+          test -n "$APKSIGNER"
+          mkdir -p app-check-fingerprints
+          OUTPUT="app-check-fingerprints/SHA256.txt"
+          : > "$OUTPUT"
+          RELEASE_APK="build/app/outputs/flutter-apk/app-release.apk"
+          if [ ! -f "$RELEASE_APK" ]; then
+            echo "Release APK not found: $RELEASE_APK"
+            find build/app/outputs -type f -name '*.apk' -print || true
             exit 1
           fi
-          mkdir -p app-check-fingerprints
-          for variant in debug release; do
-            APK="build/app/outputs/flutter-apk/app-${variant}.apk"
-            if [ ! -f "$APK" ]; then
-              echo "APK not found: $APK"
-              exit 1
+          for APK in build/app/outputs/flutter-apk/app-debug.apk "$RELEASE_APK"; do
+            if [ -f "$APK" ]; then
+              echo "=== $(basename "$APK") ===" | tee -a "$OUTPUT"
+              "$APKSIGNER" verify --print-certs "$APK" 2>&1 | tee -a "$OUTPUT"
+              echo | tee -a "$OUTPUT"
             fi
-            {
-              echo "=== ${variant} APK ==="
-              "$APKSIGNER" verify --print-certs "$APK" | grep -E "Signer #1 certificate SHA-256 digest:"
-              echo
-            } | tee -a app-check-fingerprints/SHA256.txt
           done
-          echo "SHA-256 fingerprints saved to app-check-fingerprints/SHA256.txt"
+          if ! grep -Eiq 'SHA-256' "$OUTPUT"; then
+            echo "No SHA-256 certificate fingerprint was printed."
+            cat "$OUTPUT"
+            exit 1
+          fi
+          echo "Fingerprint report created: $OUTPUT"
 
       - name: Upload App Check SHA-256 fingerprints
         uses: actions/upload-artifact@v4
